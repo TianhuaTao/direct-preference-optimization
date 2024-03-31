@@ -116,6 +116,46 @@ def get_shp(split: str, silent: bool = False, cache_dir: str = None) -> Dict[str
 
     return data
 
+def get_ultrafeedback(split: str, silent: bool = False, cache_dir: str = None) -> Dict[str, Dict[str, Union[List[Tuple[int, int]], List[str], str]]]:
+    if split == 'test':
+        print(f'Ultrafeedback dataset does not have a test split; using the first 128 samples in train split instead')
+
+    print(f'Loading Ultrafeedback dataset (train split) from Huggingface...')
+    print('Repo: argilla/ultrafeedback-binarized-preferences-cleaned')
+    dataset = datasets.load_dataset('argilla/ultrafeedback-binarized-preferences-cleaned', split='train', cache_dir=cache_dir)
+    if split == 'test':
+        # get the first 128 samples in the train split
+        dataset = dataset.select(range(256))
+    elif split == 'train':
+        # get the rest of the train split
+        dataset = dataset.select(range(256, len(dataset)))
+    else:
+        raise ValueError(f"Unknown split '{split}'")
+    print('done')
+
+    def split_prompt_and_responses(ex):
+        prompt = ex['prompt']
+
+        assert len(ex['chosen']) == 2 , f"Chosen response does not have length 2: {ex['chosen']}"
+        assert len(ex['rejected']) == 2, f"Rejected response does not have length 2: {ex['rejected']}"
+        assert ex['chosen'][0]['role'] == 'user' and ex['chosen'][1]['role'] == 'assistant', f"Chosen response does not have correct roles: {ex['chosen']}"
+        assert ex['rejected'][0]['role'] == 'user' and ex['rejected'][1]['role'] == 'assistant', f"Rejected response does not have correct roles: {ex['rejected']}"
+
+        chosen_response = ex['chosen'][1]['content']
+        rejected_response = ex['rejected'][1]['content']
+        return prompt, chosen_response, rejected_response
+
+    data = defaultdict(lambda: defaultdict(list))
+    for row in tqdm.tqdm(dataset, desc='Processing Ultrafeedback', disable=silent):
+        prompt, chosen, rejected = split_prompt_and_responses(row)
+        responses = [chosen, rejected]
+        n_responses = len(data[prompt]['responses'])
+        data[prompt]['pairs'].append((n_responses, n_responses + 1))
+        data[prompt]['responses'].extend(responses)
+        data[prompt]['sft_target'] = chosen
+
+    return data
+
 
 def get_hh(split: str, silent: bool = False, cache_dir: str = None) -> Dict[str, Dict[str, Union[List[Tuple[int, int]], List[str], str]]]:
     """Load the Anthropic Helpful-Harmless dataset from Huggingface and convert it to the necessary format.
@@ -168,6 +208,8 @@ def get_dataset(name: str, split: str, silent: bool = False, cache_dir: str = No
         data = get_hh(split, silent=silent, cache_dir=cache_dir)
     elif name == 'se':
         data = get_se(split, silent=silent, cache_dir=cache_dir)
+    elif name == 'ultrafeedback':
+        data = get_ultrafeedback(split, silent=silent, cache_dir=cache_dir)
     else:
         raise ValueError(f"Unknown dataset '{name}'")
 
@@ -321,6 +363,12 @@ def get_batch_iterator(names: List[str],
                 flat_data.append((prompt, data['responses'], data['pairs'], data['sft_target'], truncation_mode))
 
     collate_fn = get_collate_fn(tokenizer)
+    if n_epochs is not None and n_examples is None:
+        print(f'>>> Total number of examples ({split}): {n_epochs * len(flat_data)}')
+    elif n_examples is not None and n_epochs is None:
+        print(f'>>> Total number of examples ({split}): {n_examples}')
+    else:
+        print(f'>>> Total number of examples ({split}): {min(n_epochs * len(flat_data), n_examples)}')
 
     epoch_idx = 0
     example_idx = 0

@@ -22,7 +22,7 @@ datasets:
 
 # wandb configuration
 wandb:
-  enabled: true
+  enabled: false
   entity: null
   project: "direct-preference-optimization"
 
