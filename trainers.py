@@ -366,10 +366,16 @@ class BasicTrainer(object):
                 for k, v in metrics.items():
                     batch_metrics[k].extend(v)
 
-            grad_norm = self.clip_gradient()
-            self.optimizer.step()
-            self.scheduler.step()
-            self.optimizer.zero_grad()
+            # check for nan loss
+            if torch.isnan(loss):
+                print('nan loss detected; skipping update')
+                self.scheduler.step()
+                self.optimizer.zero_grad()
+            else:
+                grad_norm = self.clip_gradient()
+                self.optimizer.step()
+                self.scheduler.step()
+                self.optimizer.zero_grad()
 
             step_time = time.time() - start_time
             examples_per_second = self.config.batch_size / step_time
