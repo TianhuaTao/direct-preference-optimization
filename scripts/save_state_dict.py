@@ -5,7 +5,7 @@ import torch
 
 # model = AutoModelForCausalLM.from_pretrained("../models/Llama-2-7b-hf")
 # model = AutoModelForCausalLM.from_pretrained("../models/pythia-2.8b")
-model = AutoModelForCausalLM.from_pretrained("../models/OLMo-7B")
+model = AutoModelForCausalLM.from_pretrained("allenai/OLMo-7B", trust_remote_code=True)
 
 # target = '../state_dict/Llama-2-7b-hf.pt'
 # target = '../state_dict/pythia-2.8b.pt'
