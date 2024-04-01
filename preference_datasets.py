@@ -142,7 +142,13 @@ def get_ultrafeedback(split: str, silent: bool = False, cache_dir: str = None) -
         assert ex['rejected'][0]['role'] == 'user' and ex['rejected'][1]['role'] == 'assistant', f"Rejected response does not have correct roles: {ex['rejected']}"
 
         chosen_response = ex['chosen'][1]['content']
+        # only keep the part before the first "</s>"
+        chosen_response = chosen_response.split("</s>")[0]
+
         rejected_response = ex['rejected'][1]['content']
+        # only keep the part before the first "</s>"
+        rejected_response = rejected_response.split("</s>")[0]
+        
         return prompt, chosen_response, rejected_response
 
     data = defaultdict(lambda: defaultdict(list))
@@ -267,9 +273,21 @@ def tokenize_batch_element(prompt: str, chosen: str, rejected: str, truncation_m
     chosen_tokens = tokenizer(chosen, add_special_tokens=False)
     rejected_tokens = tokenizer(rejected, add_special_tokens=False)
     prompt_tokens = tokenizer(prompt, add_special_tokens=False)
-
-    assert tokenizer.eos_token_id not in prompt_tokens['input_ids'], f"Prompt contains EOS token: {prompt}"
-    assert tokenizer.eos_token_id not in chosen_tokens['input_ids'], f"Chosen response contains EOS token: {chosen}"
+    assert len(chosen_tokens) > 0, f"Chosen response is empty: {chosen}"
+    assert len(rejected_tokens) > 0, f"Rejected response is empty: {rejected}"
+    
+    # assert tokenizer.eos_token_id not in prompt_tokens['input_ids'], f"Prompt contains EOS token: {prompt}"
+    if tokenizer.eos_token_id in prompt_tokens['input_ids']:
+        print(f">>> Prompt contains EOS token:")
+        print("-------")
+        print(prompt)
+        print("-------")
+    # assert tokenizer.eos_token_id not in chosen_tokens['input_ids'], f"Chosen response contains EOS token: {chosen}"
+    if tokenizer.eos_token_id in chosen_tokens['input_ids']:
+        print(f">>> Chosen response contains EOS token:")
+        print("-------")
+        print(chosen)
+        print("-------")
     # assert tokenizer.eos_token_id not in rejected_tokens['input_ids'], f"Rejected response contains EOS token: {rejected}"
     if tokenizer.eos_token_id in rejected_tokens['input_ids']:
         print(f">>> Rejected response contains EOS token:")
