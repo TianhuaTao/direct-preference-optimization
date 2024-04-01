@@ -134,8 +134,7 @@ def get_ultrafeedback(split: str, silent: bool = False, cache_dir: str = None) -
     print('done')
 
     def split_prompt_and_responses(ex):
-        prompt = ex['prompt']
-
+        prompt = '\n\nHuman: ' + ex['prompt'] + '\n\nAssistant:' 
         assert len(ex['chosen']) == 2 , f"Chosen response does not have length 2: {ex['chosen']}"
         assert len(ex['rejected']) == 2, f"Rejected response does not have length 2: {ex['rejected']}"
         assert ex['chosen'][0]['role'] == 'user' and ex['chosen'][1]['role'] == 'assistant', f"Chosen response does not have correct roles: {ex['chosen']}"

@@ -361,21 +361,17 @@ class BasicTrainer(object):
                 global_microbatch = slice_and_move_batch_for_device(batch, microbatch_idx, self.config.gradient_accumulation_steps, self.rank)
                 local_microbatch = slice_and_move_batch_for_device(global_microbatch, self.rank, self.world_size, self.rank)
                 loss, metrics = self.get_batch_metrics(local_microbatch, self.config.loss, train=True)
+                if torch.isnan(loss):
+                    print('nan loss detected')
                 (loss / self.config.gradient_accumulation_steps).backward()
 
                 for k, v in metrics.items():
                     batch_metrics[k].extend(v)
 
-            # check for nan loss
-            if torch.isnan(loss):
-                print('nan loss detected; skipping update')
-                self.scheduler.step()
-                self.optimizer.zero_grad()
-            else:
-                grad_norm = self.clip_gradient()
-                self.optimizer.step()
-                self.scheduler.step()
-                self.optimizer.zero_grad()
+            grad_norm = self.clip_gradient()
+            self.optimizer.step()
+            self.scheduler.step()
+            self.optimizer.zero_grad()
 
             step_time = time.time() - start_time
             examples_per_second = self.config.batch_size / step_time
